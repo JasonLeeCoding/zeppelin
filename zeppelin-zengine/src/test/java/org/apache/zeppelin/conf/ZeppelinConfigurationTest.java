@@ -18,6 +18,7 @@ package org.apache.zeppelin.conf;
 
 
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.zeppelin.conf.ZeppelinConfiguration.ConfVars;
 import org.junit.Assert;
 import org.junit.Before;
@@ -131,9 +132,10 @@ public class ZeppelinConfigurationTest {
     System.setProperty(ConfVars.ZEPPELIN_HOME.getVarName(), "/usr/lib/zeppelin");
     System.setProperty(ConfVars.ZEPPELIN_CONFIG_FS_DIR.getVarName(), "conf");
     ZeppelinConfiguration conf = new ZeppelinConfiguration(this.getClass().getResource("/zeppelin-test-site.xml"));
-    assertEquals("/usr/lib/zeppelin/conf", conf.getConfigFSDir());
+    assertEquals("/usr/lib/zeppelin/conf", conf.getConfigFSDir(true));
 
     System.setProperty(ConfVars.ZEPPELIN_CONFIG_STORAGE_CLASS.getVarName(), "org.apache.zeppelin.storage.FileSystemConfigStorage");
-    assertEquals("conf", conf.getConfigFSDir());
+    assertEquals("conf", conf.getConfigFSDir(false));
   }
+
 }

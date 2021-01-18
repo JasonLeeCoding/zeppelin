@@ -20,19 +20,24 @@ package org.apache.zeppelin.flink;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.compress.utils.Lists;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.scala.DataSet;
 import org.apache.flink.client.cli.CliFrontend;
+import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.python.PythonOptions;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.api.bridge.scala.BatchTableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
@@ -75,6 +80,7 @@ import org.apache.flink.table.operations.ddl.DropViewOperation;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.util.FlinkException;
 import org.apache.zeppelin.flink.shims111.CollectStreamTableSink;
 import org.apache.zeppelin.flink.shims111.Flink111ScalaShims;
 import org.apache.zeppelin.flink.sql.SqlCommandParser;
@@ -135,6 +141,22 @@ public class Flink111Shims extends FlinkShims {
 
   public Flink111Shims(Properties properties) {
     super(properties);
+  }
+
+  @Override
+  public void disableSysoutLogging(Object batchConfig, Object streamConfig) {
+    ((ExecutionConfig) batchConfig).disableSysoutLogging();
+    ((ExecutionConfig) streamConfig).disableSysoutLogging();
+  }
+
+  @Override
+  public Object createStreamExecutionEnvironmentFactory(Object streamExecutionEnvironment) {
+    return new StreamExecutionEnvironmentFactory() {
+      @Override
+      public StreamExecutionEnvironment createExecutionEnvironment() {
+        return (StreamExecutionEnvironment) streamExecutionEnvironment;
+      }
+    };
   }
 
   @Override
@@ -374,6 +396,12 @@ public class Flink111Shims extends FlinkShims {
   }
 
   @Override
+  public String explain(Object tableEnv, String sql) {
+    TableResult tableResult = ((TableEnvironment) tableEnv).executeSql(sql);
+    return tableResult.collect().next().getField(0).toString();
+  }
+
+  @Override
   public String sqlHelp() {
     return MESSAGE_HELP.toString();
   }
@@ -395,8 +423,13 @@ public class Flink111Shims extends FlinkShims {
   }
 
   @Override
-  public Object getCustomCli(Object cliFrontend, Object commandLine) {
-    return ((CliFrontend)cliFrontend).validateAndGetActiveCommandLine((CommandLine) commandLine);
+  public Object updateEffectiveConfig(Object cliFrontend, Object commandLine, Object effectiveConfig) {
+    CustomCommandLine customCommandLine = ((CliFrontend)cliFrontend).validateAndGetActiveCommandLine((CommandLine) commandLine);
+    try {
+      return customCommandLine.applyCommandLineOptionsToConfiguration((CommandLine) commandLine);
+    } catch (FlinkException e) {
+      throw new RuntimeException("Fail to call applyCommandLineOptionsToConfiguration", e);
+    }
   }
 
   @Override

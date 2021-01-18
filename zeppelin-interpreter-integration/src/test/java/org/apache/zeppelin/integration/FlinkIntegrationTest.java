@@ -76,7 +76,7 @@ public abstract class FlinkIntegrationTest {
     hadoopCluster.start();
 
     zeppelin = new MiniZeppelin();
-    zeppelin.start();
+    zeppelin.start(FlinkIntegrationTest.class);
     interpreterFactory = zeppelin.getInterpreterFactory();
     interpreterSettingManager = zeppelin.getInterpreterSettingManager();
   }
@@ -111,6 +111,10 @@ public abstract class FlinkIntegrationTest {
     InterpreterSetting flinkInterpreterSetting = interpreterSettingManager.getByName("flink");
     assertEquals(1, flinkInterpreterSetting.getAllInterpreterGroups().size());
     assertNotNull(flinkInterpreterSetting.getAllInterpreterGroups().get(0).getWebUrl());
+
+    Interpreter flinkShellInterpreter = interpreterFactory.getInterpreter("flink.cmd", new ExecutionContextBuilder().setUser("user1").setNoteId("note1").setDefaultInterpreterGroup("flink").createExecutionContext());
+    interpreterResult = flinkShellInterpreter.interpret("info -c org.apache.flink.streaming.examples.wordcount.WordCount " + flinkHome + "/examples/streaming/WordCount.jar", context);
+    assertEquals(InterpreterResult.Code.SUCCESS, interpreterResult.code());
   }
 
   @Test

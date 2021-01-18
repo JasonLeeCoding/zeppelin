@@ -18,7 +18,7 @@
 
 package org.apache.zeppelin.flink
 
-import java.io.{BufferedReader, File, IOException}
+import java.io.{BufferedReader, File}
 import java.net.{URL, URLClassLoader}
 import java.nio.file.Files
 import java.util.Properties
@@ -28,7 +28,7 @@ import java.util.jar.JarFile
 import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.flink.api.common.JobExecutionResult
-import org.apache.flink.api.scala.{ExecutionEnvironment, FlinkILoop}
+import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.client.program.ClusterClient
 import org.apache.flink.configuration._
 import org.apache.flink.core.execution.{JobClient, JobListener}
@@ -46,13 +46,14 @@ import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, Tabl
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.module.hive.HiveModule
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli
-import org.apache.zeppelin.flink.util.DependencyUtils
+import org.apache.zeppelin.dep.DependencyResolver
 import org.apache.zeppelin.flink.FlinkShell._
 import org.apache.zeppelin.interpreter.thrift.InterpreterCompletion
 import org.apache.zeppelin.interpreter.util.InterpreterOutputStream
 import org.apache.zeppelin.interpreter.{InterpreterContext, InterpreterException, InterpreterHookRegistry, InterpreterResult}
 import org.slf4j.{Logger, LoggerFactory}
 
+import scala.collection.{JavaConversions, JavaConverters}
 import scala.collection.JavaConverters._
 import scala.tools.nsc.Settings
 import scala.tools.nsc.interpreter.Completion.ScalaCompleter
@@ -120,7 +121,7 @@ class FlinkScalaInterpreter(val properties: Properties) {
     modifiers.add("@transient")
     this.bind("z", z.getClass().getCanonicalName(), z, modifiers);
 
-    this.jobManager = new JobManager(this.z, jmWebUrl, replacedJMWebUrl)
+    this.jobManager = new JobManager(this.z, jmWebUrl, replacedJMWebUrl, properties)
 
     // register JobListener
     val jobListener = new FlinkJobListener()
@@ -444,8 +445,7 @@ class FlinkScalaInterpreter(val properties: Properties) {
 
     if (java.lang.Boolean.parseBoolean(
       properties.getProperty("zeppelin.flink.disableSysoutLogging", "true"))) {
-      this.benv.getConfig.disableSysoutLogging()
-      this.senv.getConfig.disableSysoutLogging()
+      flinkShims.disableSysoutLogging(this.benv.getConfig, this.senv.getConfig);
     }
   }
 
@@ -510,9 +510,7 @@ class FlinkScalaInterpreter(val properties: Properties) {
   }
 
   private def setAsContext(): Unit = {
-    val streamFactory = new StreamExecutionEnvironmentFactory() {
-      override def createExecutionEnvironment = senv.getJavaEnv
-    }
+    val streamFactory = flinkShims.createStreamExecutionEnvironmentFactory(this.senv.getJavaEnv)
     //StreamExecutionEnvironment
     var method = classOf[JStreamExecutionEnvironment].getDeclaredMethod("initializeContextEnvironment",
       classOf[StreamExecutionEnvironmentFactory])
@@ -640,30 +638,45 @@ class FlinkScalaInterpreter(val properties: Properties) {
     }
   }
 
-  def setSavePointIfNecessary(context: InterpreterContext): Unit = {
-    val savepointDir = context.getLocalProperties.get("savepointDir")
-    val savepointPath = context.getLocalProperties.get("savepointPath");
-
-    if (!StringUtils.isBlank(savepointPath)){
-      LOGGER.info("savepointPath has been setup by user , savepointPath = {}", savepointPath)
-      configuration.setString("execution.savepoint.path", savepointPath)
+  /**
+   * Set execution.savepoint.path in the following order:
+   *
+   * 1. Use savepoint path stored in paragraph config, this is recorded by zeppelin when paragraph is canceled,
+   * 2. Use checkpoint path stored in pararaph config, this is recorded by zeppelin in flink job progress poller.
+   * 3. Use local property 'execution.savepoint.path' if user set it.
+   * 4. Otherwise remove 'execution.savepoint.path' when user didn't specify it in %flink.conf
+   *
+   * @param context
+   */
+  def setSavepointPathIfNecessary(context: InterpreterContext): Unit = {
+    val savepointPath = context.getConfig.getOrDefault(JobManager.SAVEPOINT_PATH, "").toString
+    val resumeFromSavepoint = context.getBooleanLocalProperty(JobManager.RESUME_FROM_SAVEPOINT, false)
+    if (!StringUtils.isBlank(savepointPath) && resumeFromSavepoint){
+      LOGGER.info("Resume job from savepoint , savepointPath = {}", savepointPath)
+      configuration.setString(SavepointConfigOptions.SAVEPOINT_PATH.key(), savepointPath)
       return
-    } else if ("".equals(savepointPath)) {
-      LOGGER.info("savepointPath is empty, remove execution.savepoint.path")
-      configuration.removeConfig(SavepointConfigOptions.SAVEPOINT_PATH);
+    }
+
+    val checkpointPath = context.getConfig.getOrDefault(JobManager.LATEST_CHECKPOINT_PATH, "").toString
+    val resumeFromLatestCheckpoint = context.getBooleanLocalProperty(JobManager.RESUME_FROM_CHECKPOINT, false)
+    if (!StringUtils.isBlank(checkpointPath) && resumeFromLatestCheckpoint) {
+      LOGGER.info("Resume job from checkpoint , checkpointPath = {}", checkpointPath)
+      configuration.setString(SavepointConfigOptions.SAVEPOINT_PATH.key(), checkpointPath)
+      return
+    }
+
+    val userSavepointPath = context.getLocalProperties.getOrDefault(
+      SavepointConfigOptions.SAVEPOINT_PATH.key(), "")
+    if (!StringUtils.isBlank(userSavepointPath)) {
+      LOGGER.info("Resume job from user set savepoint , savepointPath = {}", userSavepointPath)
+      configuration.setString(SavepointConfigOptions.SAVEPOINT_PATH.key(), checkpointPath)
       return;
     }
 
-    if (!StringUtils.isBlank(savepointDir)) {
-      val savepointPath = z.angular(context.getParagraphId + "_savepointpath", context.getNoteId, null)
-      if (savepointPath == null) {
-        LOGGER.info("savepointPath is null because it is the first run")
-        // remove the SAVEPOINT_PATH which may be set by last job.
-        configuration.removeConfig(SavepointConfigOptions.SAVEPOINT_PATH)
-      } else {
-        LOGGER.info("Set savepointPath to: " + savepointPath.toString)
-        configuration.setString("execution.savepoint.path", savepointPath.toString)
-      }
+    val userSettingSavepointPath = properties.getProperty(SavepointConfigOptions.SAVEPOINT_PATH.key())
+    if (StringUtils.isBlank(userSettingSavepointPath)) {
+      // remove SAVEPOINT_PATH when user didn't set it via %flink.conf
+      configuration.removeConfig(SavepointConfigOptions.SAVEPOINT_PATH)
     }
   }
 
@@ -772,7 +785,10 @@ class FlinkScalaInterpreter(val properties: Properties) {
     val flinkPackageJars =
       if (!StringUtils.isBlank(properties.getProperty("flink.execution.packages", ""))) {
         val packages = properties.getProperty("flink.execution.packages")
-        DependencyUtils.resolveMavenDependencies(null, packages, null, null, None).split(":").toSeq
+        val dependencyResolver = new DependencyResolver(System.getProperty("user.home") + "/.m2/repository")
+        packages.split(",")
+          .flatMap(e => JavaConversions.asScalaBuffer(dependencyResolver.load(e)))
+          .map(e => e.getAbsolutePath).toSeq
       } else {
         Seq.empty[String]
       }

@@ -63,7 +63,7 @@ public class K8sStandardInterpreterLauncher extends InterpreterLauncher {
    * @return
    */
   boolean isRunningOnKubernetes() {
-    return new File("/var/run/secrets/kubernetes.io").exists();
+    return new File(Config.KUBERNETES_NAMESPACE_PATH).exists();
   }
 
   /**
@@ -152,7 +152,9 @@ public class K8sStandardInterpreterLauncher extends InterpreterLauncher {
             zConf.getK8sPortForward(),
             zConf.getK8sSparkContainerImage(),
             getConnectTimeout(),
-            isUserImpersonateForSparkInterpreter(context));
+            getConnectPoolSize(),
+            isUserImpersonateForSparkInterpreter(context),
+            zConf.getK8sTimeoutDuringPending());
   }
 
   protected Map<String, String> buildEnvFromProperties(InterpreterLaunchContext context) {
@@ -172,7 +174,7 @@ public class K8sStandardInterpreterLauncher extends InterpreterLauncher {
     return env;
   }
 
-  String readFile(String path, Charset encoding) throws IOException {
+  private String readFile(String path, Charset encoding) throws IOException {
     byte[] encoded = Files.readAllBytes(Paths.get(path));
     return new String(encoded, encoding);
   }

@@ -409,7 +409,7 @@ public class IPyFlinkInterpreterTest extends IPythonInterpreterTest {
             "log group by url')\nz.show(table, stream_type='update')", context);
     assertEquals(InterpreterResult.Code.SUCCESS, result.code());
     List<InterpreterResultMessage> resultMessages = context.out.toInterpreterResultMessage();
-    assertEquals(InterpreterResult.Type.TABLE, resultMessages.get(0).getType());
+    assertEquals(context.out.toString(), InterpreterResult.Type.TABLE, resultMessages.get(0).getType());
     TestCase.assertTrue(resultMessages.toString(),
             resultMessages.get(0).getData().contains("url\tpv\n"));
   }
@@ -426,7 +426,7 @@ public class IPyFlinkInterpreterTest extends IPythonInterpreterTest {
       try {
         InterpreterContext context = createInterpreterContext();
         context.getLocalProperties().put("type", "update");
-        context.getLocalProperties().put("savepointDir", savePointDir.getAbsolutePath());
+        context.getLocalProperties().put("savePointDir", savePointDir.getAbsolutePath());
         context.getLocalProperties().put("parallelism", "1");
         context.getLocalProperties().put("maxParallelism", "10");
         InterpreterResult result2 = interpreter.interpret(
@@ -449,7 +449,7 @@ public class IPyFlinkInterpreterTest extends IPythonInterpreterTest {
 
     InterpreterContext context = createInterpreterContext();
     context.getLocalProperties().put("type", "update");
-    context.getLocalProperties().put("savepointDir", savePointDir.getAbsolutePath());
+    context.getLocalProperties().put("savePointDir", savePointDir.getAbsolutePath());
     context.getLocalProperties().put("parallelism", "2");
     context.getLocalProperties().put("maxParallelism", "10");
     interpreter.cancel(context);
@@ -470,7 +470,7 @@ public class IPyFlinkInterpreterTest extends IPythonInterpreterTest {
     InterpreterContext context = InterpreterContext.builder()
             .setNoteId("noteId")
             .setParagraphId("paragraphId")
-            .setInterpreterOut(new InterpreterOutput(null))
+            .setInterpreterOut(new InterpreterOutput())
             .setIntpEventClient(mock(RemoteInterpreterEventClient.class))
             .setAngularObjectRegistry(angularObjectRegistry)
             .build();
@@ -482,7 +482,7 @@ public class IPyFlinkInterpreterTest extends IPythonInterpreterTest {
     InterpreterContext context = InterpreterContext.builder()
             .setNoteId("noteId")
             .setParagraphId("paragraphId")
-            .setInterpreterOut(new InterpreterOutput(null))
+            .setInterpreterOut(new InterpreterOutput())
             .setAngularObjectRegistry(angularObjectRegistry)
             .setIntpEventClient(mock(RemoteInterpreterEventClient.class))
             .build();

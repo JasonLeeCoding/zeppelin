@@ -16,7 +16,6 @@
  */
 package org.apache.zeppelin.interpreter.remote;
 
-import org.apache.zeppelin.interpreter.thrift.RemoteInterpreterService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,12 +35,13 @@ public class RemoteInterpreterRunningProcess extends RemoteInterpreterProcess {
       String interpreterSettingName,
       String interpreterGroupId,
       int connectTimeout,
+      int connectionPoolSize,
       String intpEventServerHost,
       int intpEventServerPort,
       String host,
       int port,
       boolean isRecovery) {
-    super(connectTimeout, intpEventServerHost, intpEventServerPort);
+    super(connectTimeout, connectionPoolSize, intpEventServerHost, intpEventServerPort);
     this.interpreterSettingName = interpreterSettingName;
     this.interpreterGroupId = interpreterGroupId;
     this.host = host;

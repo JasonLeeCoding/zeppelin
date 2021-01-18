@@ -46,19 +46,21 @@ public class StandardInterpreterLauncher extends InterpreterLauncher {
 
   @Override
   public InterpreterClient launchDirectly(InterpreterLaunchContext context) throws IOException {
-    LOGGER.info("Launching new interpreter process of " + context.getInterpreterSettingGroup());
+    LOGGER.info("Launching new interpreter process of {}", context.getInterpreterSettingGroup());
     this.properties = context.getProperties();
     InterpreterOption option = context.getOption();
     InterpreterRunner runner = context.getRunner();
     String groupName = context.getInterpreterSettingGroup();
     String name = context.getInterpreterSettingName();
     int connectTimeout = getConnectTimeout();
+    int connectionPoolSize = getConnectPoolSize();
 
     if (option.isExistingProcess()) {
       return new RemoteInterpreterRunningProcess(
           context.getInterpreterSettingName(),
           context.getInterpreterGroupId(),
           connectTimeout,
+          connectionPoolSize,
           context.getIntpEventServerHost(),
           context.getIntpEventServerPort(),
           option.getHost(),
@@ -72,14 +74,14 @@ public class StandardInterpreterLauncher extends InterpreterLauncher {
           runner != null ? runner.getPath() : zConf.getInterpreterRemoteRunnerPath(),
           context.getIntpEventServerPort(), context.getIntpEventServerHost(), zConf.getInterpreterPortRange(),
           zConf.getInterpreterDir() + "/" + groupName, localRepoPath,
-          buildEnvFromProperties(context), connectTimeout, name,
+          buildEnvFromProperties(context), connectTimeout, connectionPoolSize, name,
           context.getInterpreterGroupId(), option.isUserImpersonate());
     }
   }
 
   public Map<String, String> buildEnvFromProperties(InterpreterLaunchContext context) throws IOException {
     Map<String, String> env = EnvironmentUtils.getProcEnvironment();
-    for (Map.Entry entry : context.getProperties().entrySet()) {
+    for (Map.Entry<Object,Object> entry : context.getProperties().entrySet()) {
       String key = (String) entry.getKey();
       String value = (String) entry.getValue();
       if (RemoteInterpreterUtils.isEnvString(key) && !StringUtils.isBlank(value)) {

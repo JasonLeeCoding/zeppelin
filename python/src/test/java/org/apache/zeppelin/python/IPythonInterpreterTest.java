@@ -84,7 +84,6 @@ public class IPythonInterpreterTest extends BasePythonInterpreterTest {
     } catch (IOException e) {
       throw new InterpreterException(e);
     }
-
   }
 
   @Override
@@ -300,27 +299,14 @@ public class IPythonInterpreterTest extends BasePythonInterpreterTest {
             InterpreterResult.Code.SUCCESS, result.code());
     interpreterResultMessages = context.out.toInterpreterResultMessage();
 
-    if (isPython2) {
-      // python 2 will have one extra output
-      // %text /home/travis/miniconda/lib/python2.7/site-packages/param/parameterized.py:2812: 
-      // UserWarning: Config option `use_jedi` not recognized by `IPCompleter`.
-      // return inst.__call__(*args,**params)
-      assertEquals(5, interpreterResultMessages.size());
-      assertEquals(InterpreterResult.Type.HTML, interpreterResultMessages.get(1).getType());
-      assertEquals(InterpreterResult.Type.HTML, interpreterResultMessages.get(2).getType());
-      assertEquals(InterpreterResult.Type.HTML, interpreterResultMessages.get(3).getType());
-      assertEquals(InterpreterResult.Type.HTML, interpreterResultMessages.get(4).getType());
-      // docs_json is the source data of plotting which bokeh would use to render the plotting.
-      assertTrue(interpreterResultMessages.get(4).getData().contains("docs_json"));
-    } else {
-      assertEquals(4, interpreterResultMessages.size());
-      assertEquals(InterpreterResult.Type.HTML, interpreterResultMessages.get(0).getType());
-      assertEquals(InterpreterResult.Type.HTML, interpreterResultMessages.get(1).getType());
-      assertEquals(InterpreterResult.Type.HTML, interpreterResultMessages.get(2).getType());
-      assertEquals(InterpreterResult.Type.HTML, interpreterResultMessages.get(3).getType());
-      // docs_json is the source data of plotting which bokeh would use to render the plotting.
-      assertTrue(interpreterResultMessages.get(3).getData().contains("docs_json"));
-    }
+    assertEquals(context.out.toString(), 5, interpreterResultMessages.size());
+    // the first message is the warning text message.
+    assertEquals(InterpreterResult.Type.HTML, interpreterResultMessages.get(1).getType());
+    assertEquals(InterpreterResult.Type.HTML, interpreterResultMessages.get(2).getType());
+    assertEquals(InterpreterResult.Type.HTML, interpreterResultMessages.get(3).getType());
+    assertEquals(InterpreterResult.Type.HTML, interpreterResultMessages.get(4).getType());
+    // docs_json is the source data of plotting which bokeh would use to render the plotting.
+    assertTrue(interpreterResultMessages.get(4).getData().contains("docs_json"));
   }
 
 
@@ -391,7 +377,7 @@ public class IPythonInterpreterTest extends BasePythonInterpreterTest {
     // We ensure that running and auto completion are not hanging.
     InterpreterResult res = interpretFuture.get(20000, TimeUnit.MILLISECONDS);
     List<InterpreterCompletion> autoRes = completionFuture.get(3000, TimeUnit.MILLISECONDS);
-    assertTrue(res.code().name().equals("SUCCESS"));
+    assertEquals("SUCCESS", res.code().name());
     assertTrue(autoRes.size() > 0);
   }
 

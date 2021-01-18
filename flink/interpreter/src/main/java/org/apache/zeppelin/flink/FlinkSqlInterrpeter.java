@@ -26,30 +26,25 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.JobListener;
-import org.apache.flink.python.PythonOptions;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.zeppelin.flink.sql.SqlCommandParser;
 import org.apache.zeppelin.flink.sql.SqlCommandParser.SqlCommand;
+import org.apache.zeppelin.interpreter.AbstractInterpreter;
 import org.apache.zeppelin.interpreter.Interpreter;
 import org.apache.zeppelin.interpreter.InterpreterContext;
 import org.apache.zeppelin.interpreter.InterpreterException;
 import org.apache.zeppelin.interpreter.InterpreterResult;
+import org.apache.zeppelin.interpreter.ZeppelinContext;
 import org.apache.zeppelin.interpreter.util.SqlSplitter;
-import org.jline.utils.AttributedString;
-import org.jline.utils.AttributedStringBuilder;
-import org.jline.utils.AttributedStyle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -57,7 +52,7 @@ import java.util.Properties;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
-public abstract class FlinkSqlInterrpeter extends Interpreter {
+public abstract class FlinkSqlInterrpeter extends AbstractInterpreter {
 
   protected static final Logger LOGGER = LoggerFactory.getLogger(FlinkSqlInterrpeter.class);
 
@@ -103,13 +98,8 @@ public abstract class FlinkSqlInterrpeter extends Interpreter {
   }
 
   @Override
-  public InterpreterResult interpret(String st,
-                                     InterpreterContext context) throws InterpreterException {
+  protected InterpreterResult internalInterpret(String st, InterpreterContext context) throws InterpreterException {
     LOGGER.debug("Interpret code: " + st);
-    flinkInterpreter.getZeppelinContext().setInterpreterContext(context);
-    flinkInterpreter.getZeppelinContext().setNoteGui(context.getNoteGui());
-    flinkInterpreter.getZeppelinContext().setGui(context.getGui());
-
     // set ClassLoader of current Thread to be the ClassLoader of Flink scala-shell,
     // otherwise codegen will fail to find classes defined in scala-shell
     ClassLoader originClassLoader = Thread.currentThread().getContextClassLoader();
@@ -117,10 +107,19 @@ public abstract class FlinkSqlInterrpeter extends Interpreter {
       Thread.currentThread().setContextClassLoader(flinkInterpreter.getFlinkScalaShellLoader());
       flinkInterpreter.createPlannerAgain();
       flinkInterpreter.setParallelismIfNecessary(context);
-      flinkInterpreter.setSavePointIfNecessary(context);
+      flinkInterpreter.setSavepointIfNecessary(context);
       return runSqlList(st, context);
     } finally {
       Thread.currentThread().setContextClassLoader(originClassLoader);
+    }
+  }
+
+  @Override
+  public ZeppelinContext getZeppelinContext() {
+    if (flinkInterpreter != null) {
+      return flinkInterpreter.getZeppelinContext();
+    } else {
+      return null;
     }
   }
 
@@ -128,7 +127,7 @@ public abstract class FlinkSqlInterrpeter extends Interpreter {
 
     try {
       boolean runAsOne = Boolean.parseBoolean(context.getStringLocalProperty("runAsOne", "false"));
-      List<String> sqls = sqlSplitter.splitSql(st);
+      List<String> sqls = sqlSplitter.splitSql(st).stream().map(String::trim).collect(Collectors.toList());
       boolean isFirstInsert = true;
       for (String sql : sqls) {
         Optional<SqlCommandParser.SqlCommandCall> sqlCommand = sqlCommandParser.parse(sql);
@@ -271,10 +270,10 @@ public abstract class FlinkSqlInterrpeter extends Interpreter {
         callDropTable(cmdCall.operands[0], context);
         break;
       case CREATE_VIEW:
-        callCreateView(cmdCall.operands[0], cmdCall.operands[1], context);
+        callCreateView(cmdCall, context);
         break;
       case DROP_VIEW:
-        callDropView(cmdCall.operands[0], context);
+        callDropView(cmdCall, context);
         break;
       case CREATE_DATABASE:
         callCreateDatabase(cmdCall.operands[0], context);
@@ -339,15 +338,30 @@ public abstract class FlinkSqlInterrpeter extends Interpreter {
     context.out.write("Database has been created.\n");
   }
 
-  private void callDropView(String view, InterpreterContext context) throws IOException {
-    this.tbenv.dropTemporaryView(view);
+  private void callDropView(SqlCommandParser.SqlCommandCall sqlCommand, InterpreterContext context) throws IOException {
+    try {
+      lock.lock();
+      if (flinkInterpreter.getFlinkVersion().isFlink110()) {
+        this.tbenv.dropTemporaryView(sqlCommand.operands[0]);
+      } else {
+        flinkInterpreter.getFlinkShims().executeSql(tbenv, sqlCommand.sql);
+      }
+    } finally {
+      if (lock.isHeldByCurrentThread()) {
+        lock.unlock();
+      }
+    }
     context.out.write("View has been dropped.\n");
   }
 
-  private void callCreateView(String name, String query, InterpreterContext context) throws IOException {
+  private void callCreateView(SqlCommandParser.SqlCommandCall sqlCommand, InterpreterContext context) throws IOException {
     try {
       lock.lock();
-      this.tbenv.createTemporaryView(name, tbenv.sqlQuery(query));
+      if (flinkInterpreter.getFlinkVersion().isFlink110()) {
+        this.tbenv.createTemporaryView(sqlCommand.operands[0], tbenv.sqlQuery(sqlCommand.operands[1]));
+      } else {
+        flinkInterpreter.getFlinkShims().executeSql(tbenv, sqlCommand.sql);
+      }
     } finally {
       if (lock.isHeldByCurrentThread()) {
         lock.unlock();
@@ -466,8 +480,7 @@ public abstract class FlinkSqlInterrpeter extends Interpreter {
   private void callExplain(String sql, InterpreterContext context) throws IOException {
     try {
       lock.lock();
-      Table table = this.tbenv.sqlQuery(sql);
-      context.out.write(this.tbenv.explain(table) + "\n");
+      context.out.write(this.flinkInterpreter.getFlinkShims().explain(tbenv, sql) + "\n");
     } finally {
       if (lock.isHeldByCurrentThread()) {
         lock.unlock();

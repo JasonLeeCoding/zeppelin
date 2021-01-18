@@ -57,6 +57,8 @@ public class K8sRemoteInterpreterProcessTest {
         false,
         "spark-container:1.0",
         10,
+        10,
+        false,
         false);
 
     // then
@@ -85,6 +87,8 @@ public class K8sRemoteInterpreterProcessTest {
         false,
         "spark-container:1.0",
         10,
+        10,
+        false,
         false);
 
 
@@ -118,6 +122,8 @@ public class K8sRemoteInterpreterProcessTest {
         false,
         "spark-container:1.0",
         10,
+        10,
+        false,
         false);
 
     // when
@@ -169,6 +175,8 @@ public class K8sRemoteInterpreterProcessTest {
         false,
         "spark-container:1.0",
         10,
+        10,
+        false,
         false);
 
     // when
@@ -219,7 +227,9 @@ public class K8sRemoteInterpreterProcessTest {
         false,
         "spark-container:1.0",
         10,
-        true);
+        10,
+        true,
+        false);
 
     // when
     Properties p = intp.getTemplateBindings("mytestUser");
@@ -268,7 +278,9 @@ public class K8sRemoteInterpreterProcessTest {
         false,
         "spark-container:1.0",
         10,
-        true);
+        10,
+        true,
+        false);
 
     // when
     Properties p = intp.getTemplateBindings("anonymous");
@@ -306,6 +318,8 @@ public class K8sRemoteInterpreterProcessTest {
         false,
         "spark-container:1.0",
         10,
+        10,
+        false,
         false);
 
     // when non template url
@@ -349,6 +363,8 @@ public class K8sRemoteInterpreterProcessTest {
         false,
         "spark-container:1.0",
         10,
+        10,
+        false,
         false);
 
     // when
@@ -384,6 +400,8 @@ public class K8sRemoteInterpreterProcessTest {
         false,
         "spark-container:1.0",
         10,
+        10,
+        false,
         false);
 
     // when

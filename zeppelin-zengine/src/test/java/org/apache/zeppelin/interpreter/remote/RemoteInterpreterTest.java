@@ -54,6 +54,7 @@ public class RemoteInterpreterTest extends AbstractInterpreterTest {
 
   private InterpreterSetting interpreterSetting;
 
+  @Override
   @Before
   public void setUp() throws Exception {
     super.setUp();
@@ -376,7 +377,7 @@ public class RemoteInterpreterTest extends AbstractInterpreterTest {
         new OptionInput.ParamOption("value1", "param1"),
         new OptionInput.ParamOption("value2", "param2")
     };
-    List<Object> defaultValues = new ArrayList();
+    List<Object> defaultValues = new ArrayList<>();
     defaultValues.add("default1");
     defaultValues.add("default2");
     gui.checkbox("checkbox_id", paramOptions, defaultValues);
@@ -402,7 +403,7 @@ public class RemoteInterpreterTest extends AbstractInterpreterTest {
         interpreter1.interpret("1", context1);
         fail("Should not be able to launch interpreter process");
       } catch (InterpreterException e) {
-        assertTrue(ExceptionUtils.getStackTrace(e).contains("No such file or directory"));
+        assertTrue(ExceptionUtils.getStackTrace(e).contains("java.io.IOException"));
       }
     } finally {
       System.clearProperty(ZeppelinConfiguration.ConfVars.ZEPPELIN_INTERPRETER_REMOTE_RUNNER.getVarName());
@@ -422,7 +423,7 @@ public class RemoteInterpreterTest extends AbstractInterpreterTest {
         interpreter1.interpret("1", context1);
         fail("Should not be able to launch interpreter process");
       } catch (InterpreterException e) {
-        assertTrue(ExceptionUtils.getStackTrace(e).contains("invalid_command: command not found"));
+        assertTrue(ExceptionUtils.getStackTrace(e).contains("invalid_command:"));
       }
     } finally {
       System.clearProperty(ZeppelinConfiguration.ConfVars.ZEPPELIN_INTERPRETER_REMOTE_RUNNER.getVarName());

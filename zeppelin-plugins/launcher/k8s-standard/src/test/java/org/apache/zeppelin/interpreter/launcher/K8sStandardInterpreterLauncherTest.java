@@ -29,9 +29,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 /**
- * In the future, test may use minikube on travis for end-to-end test
- * https://github.com/LiliC/travis-minikube
- * https://blog.travis-ci.com/2017-10-26-running-kubernetes-on-travis-ci-with-minikube
+ * In the future, test may use minikube for end-to-end test
  */
 public class K8sStandardInterpreterLauncherTest {
   @Before
@@ -44,7 +42,7 @@ public class K8sStandardInterpreterLauncherTest {
   @Test
   public void testK8sLauncher() throws IOException {
     // given
-    ZeppelinConfiguration zConf = new ZeppelinConfiguration();
+    ZeppelinConfiguration zConf = ZeppelinConfiguration.create();
     K8sStandardInterpreterLauncher launcher = new K8sStandardInterpreterLauncher(zConf, null);
     Properties properties = new Properties();
     properties.setProperty("ENV_1", "VALUE_1");
@@ -73,7 +71,7 @@ public class K8sStandardInterpreterLauncherTest {
   @Test
   public void testK8sLauncherWithSparkAndUserImpersonate() throws IOException {
     // given
-    ZeppelinConfiguration zConf = new ZeppelinConfiguration();
+    ZeppelinConfiguration zConf = ZeppelinConfiguration.create();
     K8sStandardInterpreterLauncher launcher = new K8sStandardInterpreterLauncher(zConf, null);
     Properties properties = new Properties();
     properties.setProperty("ENV_1", "VALUE_1");
@@ -106,7 +104,7 @@ public class K8sStandardInterpreterLauncherTest {
   @Test
   public void testK8sLauncherWithSparkAndWithoutUserImpersonate() throws IOException {
     // given
-    ZeppelinConfiguration zConf = new ZeppelinConfiguration();
+    ZeppelinConfiguration zConf = ZeppelinConfiguration.create();
     K8sStandardInterpreterLauncher launcher = new K8sStandardInterpreterLauncher(zConf, null);
     Properties properties = new Properties();
     properties.setProperty("ENV_1", "VALUE_1");

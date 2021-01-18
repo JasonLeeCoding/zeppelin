@@ -19,13 +19,18 @@
 package org.apache.zeppelin.flink;
 
 import org.apache.commons.cli.CommandLine;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.scala.DataSet;
 import org.apache.flink.client.cli.CliFrontend;
+import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.python.util.ResourceUtil;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableUtils;
@@ -40,8 +45,9 @@ import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
-import org.apache.zeppelin.flink.shims111.CollectStreamTableSink;
-import org.apache.zeppelin.flink.shims111.Flink110ScalaShims;
+import org.apache.flink.util.FlinkException;
+import org.apache.zeppelin.flink.shims110.CollectStreamTableSink;
+import org.apache.zeppelin.flink.shims110.Flink110ScalaShims;
 import org.apache.zeppelin.flink.sql.SqlCommandParser;
 import org.apache.zeppelin.interpreter.InterpreterContext;
 import org.jline.utils.AttributedString;
@@ -53,6 +59,8 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.nio.file.Files;
 import java.util.HashMap;
@@ -95,6 +103,22 @@ public class Flink110Shims extends FlinkShims {
 
   public Flink110Shims(Properties properties) {
     super(properties);
+  }
+
+  @Override
+  public void disableSysoutLogging(Object batchConfig, Object streamConfig) {
+    ((ExecutionConfig) batchConfig).disableSysoutLogging();
+    ((ExecutionConfig) streamConfig).disableSysoutLogging();
+  }
+
+  @Override
+  public Object createStreamExecutionEnvironmentFactory(Object streamExecutionEnvironment) {
+    return new StreamExecutionEnvironmentFactory() {
+      @Override
+      public StreamExecutionEnvironment createExecutionEnvironment() {
+        return (StreamExecutionEnvironment) streamExecutionEnvironment;
+      }
+    };
   }
 
   @Override
@@ -198,9 +222,19 @@ public class Flink110Shims extends FlinkShims {
         for (int i = 0; i < groups.length; i++) {
           groups[i] = matcher.group(i + 1);
         }
-        final String sql = stmt;
-        return cmd.operandConverter.apply(groups)
-                .map((operands) -> new SqlCommandParser.SqlCommandCall(cmd, operands, sql));
+        if (cmd == SqlCommandParser.SqlCommand.EXPLAIN) {
+          String[] operands = cmd.operandConverter.apply(groups).get();
+          if (operands[0].equalsIgnoreCase("select")) {
+            // flink 1.10 only suppports explain select statement.
+            String[] newOperands = new String[]{operands[0] + " " + operands[1]};
+            return Optional.of(new SqlCommandParser.SqlCommandCall(cmd, newOperands, stmt));
+          } else {
+            return Optional.empty();
+          }
+        } else {
+          return cmd.operandConverter.apply(groups)
+                  .map((operands) -> new SqlCommandParser.SqlCommandCall(cmd, operands, stmt));
+        }
       }
     }
     return Optional.empty();
@@ -209,6 +243,12 @@ public class Flink110Shims extends FlinkShims {
   @Override
   public void executeSql(Object tableEnv, String sql) {
     throw new RuntimeException("Should not be called for flink 1.10");
+  }
+
+  @Override
+  public String explain(Object tableEnv, String sql) {
+    Table table = ((TableEnvironment) tableEnv).sqlQuery(sql);
+    return ((TableEnvironment) tableEnv).explain(table);
   }
 
   @Override
@@ -224,8 +264,24 @@ public class Flink110Shims extends FlinkShims {
   }
 
   @Override
-  public Object getCustomCli(Object cliFrontend, Object commandLine) {
-    return ((CliFrontend)cliFrontend).getActiveCustomCommandLine((CommandLine) commandLine);
+  public Object updateEffectiveConfig(Object cliFrontend, Object commandLine, Object effectiveConfig) {
+    CustomCommandLine customCommandLine = null;
+    try {
+      customCommandLine = ((CliFrontend) cliFrontend).validateAndGetActiveCommandLine((CommandLine) commandLine);
+    } catch (NoSuchMethodError e) {
+      try {
+        Method method = CliFrontend.class.getMethod("getActiveCustomCommandLine", CommandLine.class);
+        customCommandLine = (CustomCommandLine) method.invoke((CliFrontend) cliFrontend, commandLine);
+      } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException ex) {
+        LOGGER.error("Fail to call getCustomCli", ex);
+        throw new RuntimeException("Fail to call getCustomCli", ex);
+      }
+    }
+    try {
+      return customCommandLine.applyCommandLineOptionsToConfiguration((CommandLine) commandLine);
+    } catch (FlinkException e) {
+      throw new RuntimeException("Fail to call applyCommandLineOptionsToConfiguration", e);
+    }
   }
 
   @Override

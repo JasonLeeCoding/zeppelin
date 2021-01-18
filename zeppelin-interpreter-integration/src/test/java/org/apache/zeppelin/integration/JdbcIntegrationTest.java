@@ -47,7 +47,7 @@ public class JdbcIntegrationTest {
   @BeforeClass
   public static void setUp() throws IOException {
     zeppelin = new MiniZeppelin();
-    zeppelin.start();
+    zeppelin.start(JdbcIntegrationTest.class);
     interpreterFactory = zeppelin.getInterpreterFactory();
     interpreterSettingManager = zeppelin.getInterpreterSettingManager();
   }
@@ -65,6 +65,7 @@ public class JdbcIntegrationTest {
     interpreterSetting.setProperty("default.driver", "com.mysql.jdbc.Driver");
     interpreterSetting.setProperty("default.url", "jdbc:mysql://localhost:3306/");
     interpreterSetting.setProperty("default.user", "root");
+    interpreterSetting.setProperty("default.password", "root");
 
     Dependency dependency = new Dependency("mysql:mysql-connector-java:5.1.46");
     interpreterSetting.setDependencies(Lists.newArrayList(dependency));

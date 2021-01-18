@@ -352,6 +352,56 @@ public abstract class SqlInterpreterTest {
     resultMessages = context.out.toInterpreterResultMessage();
     assertEquals(1, resultMessages.size());
     assertEquals("View has been dropped.\n", resultMessages.get(0).getData());
+
+    // show tables again
+    context = getInterpreterContext();
+    result = sqlInterpreter.interpret("show tables", context);
+    assertEquals(Code.SUCCESS, result.code());
+    resultMessages = context.out.toInterpreterResultMessage();
+    assertEquals(Type.TABLE, resultMessages.get(0).getType());
+    assertEquals("table\nsource_table\n", resultMessages.get(0).getData());
+
+    // create temporary view
+    if (!flinkInterpreter.getFlinkVersion().isFlink110()) {
+      context = getInterpreterContext();
+      result = sqlInterpreter.interpret("create temporary view my_temp_view as select int_col from source_table", context);
+      assertEquals(result.toString(), Code.SUCCESS, result.code());
+      resultMessages = context.out.toInterpreterResultMessage();
+      assertEquals(1, resultMessages.size());
+      assertEquals(Type.TEXT, resultMessages.get(0).getType());
+      assertEquals("View has been created.\n", resultMessages.get(0).getData());
+    }
+  }
+
+  @Test
+  public void testExplain() throws InterpreterException, IOException {
+    // create table
+    InterpreterContext context = getInterpreterContext();
+    InterpreterResult result = sqlInterpreter.interpret(
+            "CREATE TABLE source_table (int_col INT, double_col double, " +
+                    "varchar_col varchar, bool_col boolean)" +
+                    " WITH (\n" +
+                    "'format.field-delimiter'='\\n',\n" +
+                    "'connector.type'='filesystem',\n" +
+                    "'format.derive-schema'='true',\n" +
+                    "'connector.path'='hdfs:///tmp/bank.csv',\n" +
+                    "'format.type'='csv'\n" +
+                    ");",
+            context);
+    assertEquals(Code.SUCCESS, result.code());
+    List<InterpreterResultMessage> resultMessages = context.out.toInterpreterResultMessage();
+    assertEquals(1, resultMessages.size());
+    assertEquals(Type.TEXT, resultMessages.get(0).getType());
+    assertEquals("Table has been created.\n", resultMessages.get(0).getData());
+
+    // explain select statement.
+    context = getInterpreterContext();
+    result = sqlInterpreter.interpret("explain select * from source_table", context);
+    assertEquals(Code.SUCCESS, result.code());
+    resultMessages = context.out.toInterpreterResultMessage();
+    assertEquals(1, resultMessages.size());
+    assertEquals(Type.TEXT, resultMessages.get(0).getType());
+    assertTrue(resultMessages.get(0).getData(), resultMessages.get(0).getData().contains("Physical Execution Plan"));
   }
 
   @Test
@@ -517,10 +567,9 @@ public abstract class SqlInterpreterTest {
   protected InterpreterContext getInterpreterContext() {
     InterpreterContext context = InterpreterContext.builder()
             .setParagraphId("paragraphId")
-            .setInterpreterOut(new InterpreterOutput(null))
+            .setInterpreterOut(new InterpreterOutput())
             .setAngularObjectRegistry(angularObjectRegistry)
             .setIntpEventClient(mock(RemoteInterpreterEventClient.class))
-            .setInterpreterOut(new InterpreterOutput(null))
             .build();
     InterpreterContext.set(context);
     return context;

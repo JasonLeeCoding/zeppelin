@@ -40,6 +40,7 @@ import org.apache.zeppelin.user.AuthenticationInfo;
 import org.apache.zeppelin.user.Credentials;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class HeliumApplicationFactoryTest extends AbstractInterpreterTest {
@@ -49,6 +50,7 @@ public class HeliumApplicationFactoryTest extends AbstractInterpreterTest {
   private HeliumApplicationFactory heliumAppFactory;
   private AuthenticationInfo anonymous;
 
+  @Override
   @Before
   public void setUp() throws Exception {
     super.setUp();
@@ -79,6 +81,7 @@ public class HeliumApplicationFactoryTest extends AbstractInterpreterTest {
     anonymous = new AuthenticationInfo("anonymous");
   }
 
+  @Override
   @After
   public void tearDown() throws Exception {
     super.tearDown();
@@ -86,6 +89,7 @@ public class HeliumApplicationFactoryTest extends AbstractInterpreterTest {
 
 
   @Test
+  @Ignore
   public void testLoadRunUnloadApplication()
       throws IOException, ApplicationException, InterruptedException {
     // given
@@ -132,6 +136,7 @@ public class HeliumApplicationFactoryTest extends AbstractInterpreterTest {
   }
 
   @Test
+  @Ignore
   public void testUnloadOnParagraphRemove() throws IOException {
     // given
     HeliumPackage pkg1 = new HeliumPackage(HeliumType.APPLICATION,
@@ -170,6 +175,7 @@ public class HeliumApplicationFactoryTest extends AbstractInterpreterTest {
 
 
   @Test
+  @Ignore
   public void testUnloadOnInterpreterUnbind() throws IOException {
     // given
     HeliumPackage pkg1 = new HeliumPackage(HeliumType.APPLICATION,
@@ -205,6 +211,7 @@ public class HeliumApplicationFactoryTest extends AbstractInterpreterTest {
   }
 
   @Test
+  @Ignore
   public void testInterpreterUnbindOfNullReplParagraph() throws IOException {
     // create note
     Note note1 = notebook.createNote("note1", anonymous);
@@ -214,9 +221,8 @@ public class HeliumApplicationFactoryTest extends AbstractInterpreterTest {
     p1.setText("%fake ");
 
     // make sure that p1's repl is null
-    Interpreter intp = null;
     try {
-      intp = p1.getBindedInterpreter();
+      p1.getBindedInterpreter();
       fail("Should throw InterpreterNotFoundException");
     } catch (InterpreterNotFoundException e) {
 
@@ -228,6 +234,7 @@ public class HeliumApplicationFactoryTest extends AbstractInterpreterTest {
 
 
   @Test
+  @Ignore
   public void testUnloadOnInterpreterRestart() throws IOException, InterpreterException {
     // given
     HeliumPackage pkg1 = new HeliumPackage(HeliumType.APPLICATION,

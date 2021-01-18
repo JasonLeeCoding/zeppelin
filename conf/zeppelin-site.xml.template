@@ -20,12 +20,6 @@
 <configuration>
 
 <property>
-  <name>zeppelin.cluster.addr</name>
-  <value></value>
-  <description>Server cluster address, eg. 127.0.0.1:6000,127.0.0.2:6000,127.0.0.3:6000</description>
-</property>
-
-<property>
   <name>zeppelin.server.addr</name>
   <value>127.0.0.1</value>
   <description>Server binding address</description>
@@ -35,6 +29,12 @@
   <name>zeppelin.server.port</name>
   <value>8080</value>
   <description>Server port.</description>
+</property>
+
+<property>
+  <name>zeppelin.cluster.addr</name>
+  <value></value>
+  <description>Server cluster address, eg. 127.0.0.1:6000,127.0.0.2:6000,127.0.0.3:6000</description>
 </property>
 
 <property>
@@ -192,6 +192,15 @@
   <name>zeppelin.notebook.s3.sse</name>
   <value>true</value>
   <description>Server-side encryption enabled for notebooks</description>
+</property>
+-->
+
+<!-- Path style access for S3 bucket -->
+<!--
+<property>
+  <name>zeppelin.notebook.s3.pathStyleAccess</name>
+  <value>true</value>
+  <description>Path style access for S3 bucket</description>
 </property>
 -->
 
@@ -660,6 +669,21 @@
 
 <!--
 <property>
+  <name>zeppelin.server.html.body.addon</name>
+  <value><![CDATA[<script defer src="https://url/to/my/lib.min.js" /><script defer src="https://url/to/other/lib.min.js" />]]></value>
+  <description>Addon html code to be placed at the end of the html->body section in index.html delivered by zeppelin server.</description>
+</property>
+
+<property>
+  <name>zeppelin.server.html.head.addon</name>
+  <value></value>
+  <description>Addon html code to be placed at the end of the html->head section in index.html delivered by zeppelin server.</description>
+</property>
+-->
+
+
+<!--
+<property>
   <name>zeppelin.interpreter.callback.portRange</name>
   <value>10000:10010</value>
 </property>
@@ -789,6 +813,12 @@
   <name>zeppelin.spark.only_yarn_cluster</name>
   <value>false</value>
   <description>Whether only allow yarn cluster mode</description>
+</property>
+
+<property>
+  <name>zeppelin.note.file.exclude.fields</name>
+  <value></value>
+  <description>fields to be excluded from being saved in note files, with Paragraph prefix mean the fields in Paragraph, e.g. Paragraph.results</description>
 </property>
 
 </configuration>

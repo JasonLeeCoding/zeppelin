@@ -63,10 +63,11 @@ public class RemoteInterpreterManagedProcess extends RemoteInterpreterProcess {
       String localRepoDir,
       Map<String, String> env,
       int connectTimeout,
+      int connectionPoolSize,
       String interpreterSettingName,
       String interpreterGroupId,
       boolean isUserImpersonated) {
-    super(connectTimeout, intpEventServerHost, intpEventServerPort);
+    super(connectTimeout, connectionPoolSize, intpEventServerHost, intpEventServerPort);
     this.interpreterRunner = intpRunner;
     this.interpreterPortRange = interpreterPortRange;
     this.env = env;
@@ -128,12 +129,13 @@ public class RemoteInterpreterManagedProcess extends RemoteInterpreterProcess {
       Matcher m = YARN_APP_PATTER.matcher(launchOutput);
       if (m.find()) {
         String appId = m.group(1);
-        LOGGER.info("Detected yarn app: " + appId + ", add it to YarnAppMonitor");
+        LOGGER.info("Detected yarn app: {}, add it to YarnAppMonitor", appId);
         YarnAppMonitor.get().addYarnApp(ConverterUtils.toApplicationId(appId), this);
       }
     }
   }
 
+  @Override
   public void stop() {
     if (isRunning()) {
       LOGGER.info("Kill interpreter process for interpreter group: {}", getInterpreterGroupId());
@@ -183,6 +185,7 @@ public class RemoteInterpreterManagedProcess extends RemoteInterpreterProcess {
     return interpreterDir;
   }
 
+  @Override
   public String getInterpreterSettingName() {
     return interpreterSettingName;
   }
@@ -202,6 +205,7 @@ public class RemoteInterpreterManagedProcess extends RemoteInterpreterProcess {
     return isUserImpersonated;
   }
 
+  @Override
   public boolean isRunning() {
     return interpreterProcessLauncher != null && interpreterProcessLauncher.isRunning()
             && errorMessage == null;
