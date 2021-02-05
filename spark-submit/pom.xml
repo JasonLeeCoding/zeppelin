@@ -28,38 +28,41 @@
     </parent>
 
     <groupId>org.apache.zeppelin</groupId>
-    <artifactId>flink-parent</artifactId>
-    <packaging>pom</packaging>
+    <artifactId>zeppelin-spark-submit</artifactId>
+    <packaging>jar</packaging>
     <version>0.10.0-SNAPSHOT</version>
-    <name>Zeppelin: Flink Parent</name>
-    <description>Zeppelin Flink Support</description>
-
-    <modules>
-        <module>interpreter</module>
-        <module>flink-shims</module>
-        <module>flink1.10-shims</module>
-        <module>flink1.11-shims</module>
-        <module>flink1.12-shims</module>
-    </modules>
+    <name>Zeppelin: Spark-Submit interpreter</name>
 
     <properties>
-        <flink1.10.version>1.10.2</flink1.10.version>
-        <flink1.11.version>1.11.3</flink1.11.version>
-        <flink1.12.version>1.12.0</flink1.12.version>
+        <interpreter.name>spark-submit</interpreter.name>
     </properties>
 
     <dependencies>
-
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <scope>test</scope>
+            <groupId>org.apache.zeppelin</groupId>
+            <artifactId>zeppelin-shell</artifactId>
+            <version>${project.version}</version>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-enforcer-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <artifactId>maven-dependency-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <artifactId>maven-resources-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <artifactId>maven-shade-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>
