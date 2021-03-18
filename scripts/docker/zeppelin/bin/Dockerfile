@@ -20,7 +20,8 @@ LABEL maintainer="Apache Software Foundation <dev@zeppelin.apache.org>"
 ENV Z_VERSION="0.9.0"
 
 ENV LOG_TAG="[ZEPPELIN_${Z_VERSION}]:" \
-    Z_HOME="/opt/zeppelin" \
+    ZEPPELIN_HOME="/opt/zeppelin" \
+    HOME="/opt/zeppelin" \
     LANG=en_US.UTF-8 \
     LC_ALL=en_US.UTF-8 \
     JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 \
@@ -48,38 +49,39 @@ RUN set -ex && \
     export PATH=/opt/conda/bin:$PATH && \
     conda config --set always_yes yes --set changeps1 no && \
     conda info -a && \
-    conda env update -f /env_python_3_with_R.yml --prune && \
+    conda install mamba -c conda-forge && \
+    mamba env update -f /env_python_3_with_R.yml --prune && \
     # Cleanup
     rm -v miniconda.sh anaconda.sha256  && \
     # Cleanup based on https://github.com/ContinuumIO/docker-images/commit/cac3352bf21a26fa0b97925b578fb24a0fe8c383
     find /opt/conda/ -follow -type f -name '*.a' -delete && \
     find /opt/conda/ -follow -type f -name '*.js.map' -delete && \
-    conda clean -ay
+    mamba clean -ay
     # Allow to modify conda packages. This allows malicious code to be injected into other interpreter sessions, therefore it is disabled by default
     # chmod -R ug+rwX /opt/conda
 ENV PATH /opt/conda/bin:$PATH
 
 RUN echo "$LOG_TAG Download Zeppelin binary" && \
-    mkdir -p ${Z_HOME} && \
+    mkdir -p ${ZEPPELIN_HOME} && \
     wget -nv -O /tmp/zeppelin-${Z_VERSION}-bin-all.tgz https://archive.apache.org/dist/zeppelin/zeppelin-${Z_VERSION}/zeppelin-${Z_VERSION}-bin-all.tgz && \
-    tar --strip-components=1 -zxvf  /tmp/zeppelin-${Z_VERSION}-bin-all.tgz -C ${Z_HOME} && \
+    tar --strip-components=1 -zxvf  /tmp/zeppelin-${Z_VERSION}-bin-all.tgz -C ${ZEPPELIN_HOME} && \
     rm -f /tmp/zeppelin-${Z_VERSION}-bin-all.tgz && \
-    chown -R root:root ${Z_HOME} && \
-    mkdir -p ${Z_HOME}/logs ${Z_HOME}/run ${Z_HOME}/webapps && \
+    chown -R root:root ${ZEPPELIN_HOME} && \
+    mkdir -p ${ZEPPELIN_HOME}/logs ${ZEPPELIN_HOME}/run ${ZEPPELIN_HOME}/webapps && \
     # Allow process to edit /etc/passwd, to create a user entry for zeppelin
     chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \
     # Give access to some specific folders
-    chmod -R 775 "${Z_HOME}/logs" "${Z_HOME}/run" "${Z_HOME}/notebook" "${Z_HOME}/conf" && \
+    chmod -R 775 "${ZEPPELIN_HOME}/logs" "${ZEPPELIN_HOME}/run" "${ZEPPELIN_HOME}/notebook" "${ZEPPELIN_HOME}/conf" && \
     # Allow process to create new folders (e.g. webapps)
-    chmod 775 ${Z_HOME}
+    chmod 775 ${ZEPPELIN_HOME}
 
-COPY log4j.properties ${Z_HOME}/conf/
-COPY log4j_docker.properties ${Z_HOME}/conf/
+COPY log4j.properties ${ZEPPELIN_HOME}/conf/
+COPY log4j_docker.properties ${ZEPPELIN_HOME}/conf/
 
 USER 1000
 
 EXPOSE 8080
 
 ENTRYPOINT [ "/usr/bin/tini", "--" ]
-WORKDIR ${Z_HOME}
+WORKDIR ${ZEPPELIN_HOME}
 CMD ["bin/zeppelin.sh"]

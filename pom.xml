@@ -75,6 +75,7 @@
     <module>jdbc</module>
     <module>file</module>
     <module>flink</module>
+    <module>flink-cmd</module>
     <module>ignite</module>
     <module>influxdb</module>
     <module>kylin</module>
@@ -202,7 +203,7 @@
     <plugin.surefire.version>2.17</plugin.surefire.version>
     <plugin.xml.version>1.0.2</plugin.xml.version>
 
-    <testcontainers.version>1.14.3</testcontainers.version>
+    <testcontainers.version>1.15.1</testcontainers.version>
 
     <plugin.gitcommitid.useNativeGit>false</plugin.gitcommitid.useNativeGit>
 
@@ -379,12 +380,6 @@
         <groupId>org.bouncycastle</groupId>
         <artifactId>bcpkix-jdk15on</artifactId>
         <version>${bouncycastle.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.amazonaws</groupId>
-        <artifactId>aws-java-sdk-s3</artifactId>
-        <version>${aws.sdk.s3.version}</version>
       </dependency>
 
       <dependency>
@@ -1747,7 +1742,7 @@
               <exclude>**/metastore_db/</exclude>
               <exclude>**/logs/**</exclude>
               <exclude>**/run/**</exclude>
-              <exclude>**/interpreter/**</exclude>
+              <exclude>interpreter/**</exclude>
               <exclude>**/local-repo/**</exclude>
               <exclude>**/null/**</exclude>
               <exclude>**/notebook/**</exclude>
